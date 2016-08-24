@@ -66,13 +66,22 @@ module.exports = function(RED) {
 
                 users.forEach(function(node){
                     if (data.substring(0,6) == "analog" && node.send_analog){
-                        node.send({topic:"explorerhat/analog", payload:data});
+                        var channel = data.substring(7,8);
+                        data = data.split(":")[1];
+
+                        node.send({topic:"explorerhat/analog." + channel, payload:Number(data)});
                     }
                     if (data.substring(0,5) == "touch" && node.send_touch){
-                        node.send({topic:"explorerhat/touch", payload:data});
+                        var channel = data.substring(6,7);
+                        data = data.split(":")[1];
+
+                        node.send({topic:"explorerhat/touch." + channel, payload:Number(data)});
                     }
                     if (data.substring(0,5) == "input" && node.send_input){
-                        node.send({topic:"explorerhat/input", payload:data});
+                        var channel = data.substring(6,7);
+                        data = data.split(":")[1];
+
+                        node.send({topic:"explorerhat/input." + channel, payload:Number(data)});
                     }
                 });
 
