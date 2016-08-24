@@ -37,6 +37,7 @@ module.exports = function(RED) {
             var hat = null;
             var onclose = null;
             var reconnectTimer = null;
+            var disconnectTimeout = null;
             var users = [];
 
             var connect = function() {
@@ -67,13 +68,13 @@ module.exports = function(RED) {
 
                 hat.stderr.on('data', function(data) {
                     if (RED.settings.verbose) { RED.log.warn("Process Error: "+data+" :"); }
+                    hat.stdin.write("stop");
                     hat.kill("SIGKILL");
                 });
 
                 hat.on('close', function(code) {
                     if (RED.settings.verbose) { RED.log.info("Process Exit: "+code+" :"); }
                     hat = null;
-                    hat.running = false;
                     users.forEach(function(node){
                         node.status({fill:"red",shape:"circle",text:""});
                     });
@@ -91,22 +92,21 @@ module.exports = function(RED) {
 
             }
 
-            var disconnect = function(done){
-                if (hat !== null) {
-                    onclose = done;
-                    hat.stdin.write("stop\n");
-                    hat.kill("SIGKILL");
-                }
-                else {
-                    done();
-                }
-                if (reconnectTimer) {
-                    clearTimeout(reconnedTimer);
-                }
+            var disconnect = function(){
+                disconnectTimeout = setTimeout(function(){
+                    if (hat !== null) {
+                        hat.stdin.write("stop");
+                        hat.kill("SIGKILL");
+                    }
+                    if (reconnectTimer) {
+                        clearTimeout(reconnedTimer);
+                    }
+                },3000);
             }
 
             return {
                 open: function(node){
+                    if (disconnectTimeout) clearTimeout(disconnectTimeout);
                     if (!hat) connect();
 
                     if(!reconnectTimer){
@@ -123,12 +123,8 @@ module.exports = function(RED) {
                     if(RED.settings.verbose) { RED.log.info("Removing node, count: " + users.length.toString()); }
 
                     if(users.length === 0){
-                        disconnect(done);
+                        disconnect();
                     }
-                    else
-                    {
-                        done()
-                    } 
                 },
                 send: function(msg){
                     if(hat) hat.stdin.write(msg+"\n");
@@ -156,7 +152,13 @@ module.exports = function(RED) {
         HAT.open(this);
 
         node.on("close", function(done) {
-            HAT.close(this,done);
+            var fini = function(){
+                done();
+                if (RED.settings.verbose) { RED.log.info("Done Called"); }
+            }
+
+            HAT.close(this);
+            fini();
             if (RED.settings.verbose) { RED.log.info("Closing node"); }
         });
     }
