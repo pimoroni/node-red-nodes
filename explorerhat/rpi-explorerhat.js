@@ -21,8 +21,17 @@ module.exports = function(RED) {
 
     var hatCommand = __dirname+'/explorerlink';
 
+
+    function REDvWarn(message){
+        if( RED.settings.verbose ) RED.log.warn(message);
+    }
+    
+    function REDvInfo(message){
+        if( RED.settings.verbose ) RED.log.info(message);
+    }
+
     if (!fs.existsSync("/usr/share/doc/python-rpi.gpio")) {
-        util.log("[rpi-explorerhat] Info : Can't find RPi.GPIO library.");
+        REDvWarn("[rpi-explorerhat] Info : Can't find RPi.GPIO library.");
         throw "Warning : Can't find RPi.GPIO python library.";
     }
 
@@ -35,16 +44,24 @@ module.exports = function(RED) {
     var HAT = (function(){
 
         var hat = null;
-        var onclose = null;
+        var allowExit = false;
         var reconnectTimer = null;
         var disconnectTimeout = null;
         var users = [];
 
         var connect = function() {
+            if(reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            allowExit = false;
+
             hat = spawn(hatCommand);
 
-            hat.stdout.on('data', function(data) {
-                data = data.toString().trim();
+            users.forEach(function(node){
+                node.status({fill:"green",shape:"dot",text:"Connected"});
+            });
+
+            function handleMessage(data){
+                data = data.trim();
                 if (data.length == 0) return;
 
                 users.forEach(function(node){
@@ -57,37 +74,46 @@ module.exports = function(RED) {
                     if (data.substring(0,5) == "input" && node.send_input){
                         node.send({topic:"explorerhat/input", payload:data});
                     }
-
-                    node.status({fill:"green",shape:"dot",text:"ok"});
                 });
 
 
-                //if (RED.settings.verbose) RED.log.info("Got Data: " + data + " :");
+            }
+
+            hat.stdout.on('data', function(data) {
+                data = data.toString().trim();
+                if (data.length == 0) return;
+
+                var messages = data.split("\n");
+                messages.forEach(function(message){
+                    handleMessage(message);
+                });
+                //REDvInfo("Got Data: " + data + " :");
 
             });
 
             hat.stderr.on('data', function(data) {
-                if (RED.settings.verbose) { RED.log.warn("Process Error: "+data+" :"); }
+                REDvWarn("Process Error: "+data+" :");
+
                 hat.stdin.write("stop");
                 hat.kill("SIGKILL");
             });
 
             hat.on('close', function(code) {
-                if (RED.settings.verbose) { RED.log.info("Process Exit: "+code+" :"); }
+                REDvWarn("Process Exit: "+code+" :");
+
                 hat = null;
                 users.forEach(function(node){
-                    node.status({fill:"red",shape:"circle",text:""});
+                    node.status({fill:"red",shape:"circle",text:"Disconnected"});
                 });
-                if (onclose) {
-                    onclose();
-                    onclose = null;
 
-                    if (RED.settings.verbose) {RED.log.info("Process Complete"); }
-                } else if (!reconnectTimer){
+                if (!allowExit && !reconnectTimer){
+                    REDvInfo("Attempting Reconnect");
+
                     reconnectTimer = setTimeout(function(){
                         connect();
                     },5000);
                 }
+
             });
 
         }
@@ -95,13 +121,14 @@ module.exports = function(RED) {
         var disconnect = function(){
             disconnectTimeout = setTimeout(function(){
                 if (hat !== null) {
+                    allowExit = true;
                     hat.stdin.write("stop");
                     hat.kill("SIGKILL");
                 }
             },3000);
-                if (reconnectTimer) {
-                    clearTimeout(reconnedTimer);
-                }
+            if (reconnectTimer) {
+                clearTimeout(reconnedTimer);
+            }
 
         }
 
@@ -114,14 +141,14 @@ module.exports = function(RED) {
                     node.status({fill:"green",shape:"dot",text:"Connected"});
                 }
 
-                if(RED.settings.verbose) { RED.log.info("Adding node, touch: " + (node.send_touch ? "yes" : "no") + ", input: " + (node.send_input ? "yes" : "no") + ", analog:" + (node.send_analog ? "yes" : "no")); }
+                REDvInfo("Adding node, touch: " + (node.send_touch ? "yes" : "no") + ", input: " + (node.send_input ? "yes" : "no") + ", analog:" + (node.send_analog ? "yes" : "no"));
 
                 users.push(node);
             },
             close: function(node,done){
                 users.splice(users.indexOf(node),1);
                 
-                if(RED.settings.verbose) { RED.log.info("Removing node, count: " + users.length.toString()); }
+                REDvInfo("Removing node, count: " + users.length.toString());
 
                 if(users.length === 0){
                     disconnect();
@@ -147,19 +174,14 @@ module.exports = function(RED) {
 
         node.status({fill:"red",shape:"ring",text:"Disconnected"});
 
-        if(RED.settings.verbose) { RED.log.info("Initialising node"); }
+        REDvInfo("Initialising node");
 
         HAT.open(this);
 
         node.on("close", function(done) {
-            var fini = function(){
-                done();
-                if (RED.settings.verbose) { RED.log.info("Done Called"); }
-            }
-
             HAT.close(this);
-            fini();
-            if (RED.settings.verbose) { RED.log.info("Closing node"); }
+            done();
+            REDvInfo("Node Closed");
         });
     }
 
