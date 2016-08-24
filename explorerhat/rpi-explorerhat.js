@@ -32,116 +32,116 @@ module.exports = function(RED) {
 
     process.env.PYTHONBUFFERED = 1;
 
-        var HAT = (function(){
+    var HAT = (function(){
 
-            var hat = null;
-            var onclose = null;
-            var reconnectTimer = null;
-            var disconnectTimeout = null;
-            var users = [];
+        var hat = null;
+        var onclose = null;
+        var reconnectTimer = null;
+        var disconnectTimeout = null;
+        var users = [];
 
-            var connect = function() {
-                hat = spawn(hatCommand);
+        var connect = function() {
+            hat = spawn(hatCommand);
 
-                hat.stdout.on('data', function(data) {
-                    data = data.toString().trim();
-                    if (data.length == 0) return;
+            hat.stdout.on('data', function(data) {
+                data = data.toString().trim();
+                if (data.length == 0) return;
 
-                    users.forEach(function(node){
-                        if (data.substring(0,6) == "analog" && node.send_analog){
-                            node.send({topic:"explorerhat/analog", payload:data});
-                        }
-                        if (data.substring(0,5) == "touch" && node.send_touch){
-                            node.send({topic:"explorerhat/touch", payload:data});
-                        }
-                        if (data.substring(0,5) == "input" && node.send_input){
-                            node.send({topic:"explorerhat/input", payload:data});
-                        }
+                users.forEach(function(node){
+                    if (data.substring(0,6) == "analog" && node.send_analog){
+                        node.send({topic:"explorerhat/analog", payload:data});
+                    }
+                    if (data.substring(0,5) == "touch" && node.send_touch){
+                        node.send({topic:"explorerhat/touch", payload:data});
+                    }
+                    if (data.substring(0,5) == "input" && node.send_input){
+                        node.send({topic:"explorerhat/input", payload:data});
+                    }
 
-                        node.status({fill:"green",shape:"dot",text:"ok"});
-                    });
-
-
-                    //if (RED.settings.verbose) RED.log.info("Got Data: " + data + " :");
-
+                    node.status({fill:"green",shape:"dot",text:"ok"});
                 });
 
-                hat.stderr.on('data', function(data) {
-                    if (RED.settings.verbose) { RED.log.warn("Process Error: "+data+" :"); }
+
+                //if (RED.settings.verbose) RED.log.info("Got Data: " + data + " :");
+
+            });
+
+            hat.stderr.on('data', function(data) {
+                if (RED.settings.verbose) { RED.log.warn("Process Error: "+data+" :"); }
+                hat.stdin.write("stop");
+                hat.kill("SIGKILL");
+            });
+
+            hat.on('close', function(code) {
+                if (RED.settings.verbose) { RED.log.info("Process Exit: "+code+" :"); }
+                hat = null;
+                users.forEach(function(node){
+                    node.status({fill:"red",shape:"circle",text:""});
+                });
+                if (onclose) {
+                    onclose();
+                    onclose = null;
+
+                    if (RED.settings.verbose) {RED.log.info("Process Complete"); }
+                } else if (!reconnectTimer){
+                    reconnectTimer = setTimeout(function(){
+                        connect();
+                    },5000);
+                }
+            });
+
+        }
+
+        var disconnect = function(){
+            disconnectTimeout = setTimeout(function(){
+                if (hat !== null) {
                     hat.stdin.write("stop");
                     hat.kill("SIGKILL");
-                });
-
-                hat.on('close', function(code) {
-                    if (RED.settings.verbose) { RED.log.info("Process Exit: "+code+" :"); }
-                    hat = null;
-                    users.forEach(function(node){
-                        node.status({fill:"red",shape:"circle",text:""});
-                    });
-                    if (onclose) {
-                        onclose();
-                        onclose = null;
-
-                        if (RED.settings.verbose) {RED.log.info("Process Complete"); }
-                    } else if (!reconnectTimer){
-                        reconnectTimer = setTimeout(function(){
-                            connect();
-                        },5000);
-                    }
-                });
-
-            }
-
-            var disconnect = function(){
-                disconnectTimeout = setTimeout(function(){
-                    if (hat !== null) {
-                        hat.stdin.write("stop");
-                        hat.kill("SIGKILL");
-                    }
-                    if (reconnectTimer) {
-                        clearTimeout(reconnedTimer);
-                    }
-                },3000);
-            }
-
-            return {
-                open: function(node){
-                    if (disconnectTimeout) clearTimeout(disconnectTimeout);
-                    if (!hat) connect();
-
-                    if(!reconnectTimer){
-                        node.status({fill:"green",shape:"dot",text:"Connected"});
-                    }
-
-                    if(RED.settings.verbose) { RED.log.info("Adding node, touch: " + (node.send_touch ? "yes" : "no") + ", input: " + (node.send_input ? "yes" : "no") + ", analog:" + (node.send_analog ? "yes" : "no")); }
-
-                    users.push(node);
-                },
-                close: function(node,done){
-                    users.splice(users.indexOf(node),1);
-                    
-                    if(RED.settings.verbose) { RED.log.info("Removing node, count: " + users.length.toString()); }
-
-                    if(users.length === 0){
-                        disconnect();
-                    }
-                },
-                send: function(msg){
-                    if(hat) hat.stdin.write(msg+"\n");
                 }
+            },3000);
+                if (reconnectTimer) {
+                    clearTimeout(reconnedTimer);
+                }
+
+        }
+
+        return {
+            open: function(node){
+                if (disconnectTimeout) clearTimeout(disconnectTimeout);
+                if (!hat) connect();
+
+                if(!reconnectTimer){
+                    node.status({fill:"green",shape:"dot",text:"Connected"});
+                }
+
+                if(RED.settings.verbose) { RED.log.info("Adding node, touch: " + (node.send_touch ? "yes" : "no") + ", input: " + (node.send_input ? "yes" : "no") + ", analog:" + (node.send_analog ? "yes" : "no")); }
+
+                users.push(node);
+            },
+            close: function(node,done){
+                users.splice(users.indexOf(node),1);
+                
+                if(RED.settings.verbose) { RED.log.info("Removing node, count: " + users.length.toString()); }
+
+                if(users.length === 0){
+                    disconnect();
+                }
+            },
+            send: function(msg){
+                if(hat) hat.stdin.write(msg+"\n");
             }
+        }
 
 
-
-        })();
+    })();
 
 
     function ExplorerHATIn(config) {
         RED.nodes.createNode(this,config);
 
-        this.send_touch = config.touch || true;
-        this.send_input = config.input || true;
-        this.send_analog = config.analog || true;
+        this.send_touch = config.touch;
+        this.send_input = config.input;
+        this.send_analog = config.analog;
 
         var node = this;
 
