@@ -27,8 +27,6 @@ class NonBlockingStreamReader:
                 line = stream.readline()
                 if line:
                     queue.put(line)
-                else:
-                    break
 
         self._t = Thread(target = _populateQueue,
                 args = (self._s, self._q, self._stop_event))
@@ -51,6 +49,9 @@ def millis():
 def emit(message):
     sys.stdout.write(message + "\n")
     sys.stdout.flush()
+
+def error(message):
+    emit("ERROR: " + message)
 
 running = True
 
@@ -82,13 +83,90 @@ def handle_analog(analog, value):
 
 explorerhat.analog.changed(handle_analog, 0.01)
 
-while running:
-    cmd = stdin.readline(0.1)
+light_index = ['blue','yellow','red','green']
+output_index = ['one','two','three','four']
+
+def handle_command(cmd):
     if cmd is not None:
+        cmd = cmd.strip()
+
+        if cmd.startswith("light.") and ":" in cmd:
+            cmd, data = cmd.split(":")
+            channel = cmd.split(".")[1]
+
+            if channel in light_index:
+                channel = light_index.index(channel)
+            else:
+                channel = int(channel) - 1
+
+            if channel < 0 or channel > 3:
+                error("Invalid channel: " + str(channel))
+                return
+
+            if data in ["1", "on"]:
+                explorerhat.light[channel].on()
+            elif data in ["0", "off"]:
+                explorerhat.light[channel].off()
+            else:
+                error("Unhandled value: '" + data + "'")
+
+            return
+
+        if cmd.startswith("motor.") and ":" in cmd:
+            cmd, data = cmd.split(":")
+            channel = cmd.split(".")[1]
+
+            if channel in ["one", "two"]:
+                channel = ["one", "two"].index(channel)
+            else:
+                channel = int(channel) - 1
+
+            if channel < 0 or channel > 1:
+                error("Invalid channel: " + str(channel))
+                return
+
+            try:
+                data = int(data)
+            except ValueError:
+                error("Invalud value: " + data)
+
+            if data < -100 or data > 100:
+                error("Invalid value: " + str(data))
+
+            explorerhat.motor[channel].speed(data)
+
+            return
+
+        if cmd.startswith("output.") and ":" in cmd:
+            cmd, data = cmd.split(":")
+            channel = cmd.split(".")[1]
+
+            if channel in output_index:
+                channel = output_index.index(channel)
+            else:
+                channel = int(channel) - 1
+
+            if channel < 0 or channel > 3:
+                error("Invalid channel: " + str(channel))
+                return
+
+            if data in ["1", "on"]:
+                explorerhat.output[channel].on()
+            elif data in ["0", "off"]:
+                explorerhat.output[channel].off()
+            else:
+                error("Unhandled value: " + data)
+  
+            return
+
         if cmd == "stop":
             stdin.stop()
             running = False
 
+
+while running:
+    cmd = stdin.readline(0.1)
+    handle_command(cmd)
     #emit("analog.1:{}".format(explorerhat.analog.one.read()))
     #emit("analog.2:{}".format(explorerhat.analog.two.read()))
     #emit("analog.3:{}".format(explorerhat.analog.three.read()))

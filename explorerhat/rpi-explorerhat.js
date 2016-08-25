@@ -64,24 +64,29 @@ module.exports = function(RED) {
                 data = data.trim();
                 if (data.length == 0) return;
 
+                if (data.substring(0,5) == "ERROR"){
+                    REDvWarn(data);
+                    return;
+                }
+
                 users.forEach(function(node){
                     if (data.substring(0,6) == "analog" && node.send_analog){
                         var channel = data.substring(7,8);
-                        data = data.split(":")[1];
+                        var msg = data.split(":")[1];
 
-                        node.send({topic:"explorerhat/analog." + channel, payload:Number(data)});
+                        node.send({topic:"explorerhat/analog." + channel, payload:Number(msg)});
                     }
                     if (data.substring(0,5) == "touch" && node.send_touch){
                         var channel = data.substring(6,7);
-                        data = data.split(":")[1];
+                        var msg = data.split(":")[1];
 
-                        node.send({topic:"explorerhat/touch." + channel, payload:Number(data)});
+                        node.send({topic:"explorerhat/touch." + channel, payload:Number(msg)});
                     }
                     if (data.substring(0,5) == "input" && node.send_input){
                         var channel = data.substring(6,7);
-                        data = data.split(":")[1];
+                        var msg = data.split(":")[1];
 
-                        node.send({topic:"explorerhat/input." + channel, payload:Number(data)});
+                        node.send({topic:"explorerhat/input." + channel, payload:Number(msg)});
                     }
                 });
 
@@ -131,7 +136,7 @@ module.exports = function(RED) {
             disconnectTimeout = setTimeout(function(){
                 if (hat !== null) {
                     allowExit = true;
-                    hat.stdin.write("stop");
+                    hat.stdin.write("stop\n");
                     hat.kill("SIGKILL");
                 }
             },3000);
@@ -201,6 +206,13 @@ module.exports = function(RED) {
         RED.nodes.createNode(this,config);
  
         var node = this;
+
+        node.on("input", function(msg) {
+            if (typeof msg.payload === "number" || msg.payload === "on" || msg.payload == "off"){
+                HAT.send(msg.topic + ":" + msg.payload.toString());
+                REDvInfo("Sending Command: " + msg.topic + ":" + msg.payload.toString());
+            }
+        });
 
         node.on("close", function(done) {
             done();
