@@ -5,8 +5,6 @@ import sys
 from threading import Thread, Event
 from Queue import Queue, Empty
 
-import explorerhat
-
 class NonBlockingStreamReader:
 
     def __init__(self, stream):
@@ -53,6 +51,23 @@ def emit(message):
 def error(message):
     emit("ERROR: " + message)
 
+def fatal(message):
+    emit("FATAL: " + message)
+    sys.exit(1)
+
+
+try:
+    import explorerhat
+except:
+    fatal("Unable to import explorerhat python library")
+
+if not explorerhat.has_analog:
+    error("No analog detected")
+
+if not explorerhat.has_captouch:
+    error("No captouch detected")
+
+
 running = True
 
 stdin = NonBlockingStreamReader(sys.stdin)
@@ -60,8 +75,9 @@ stdin = NonBlockingStreamReader(sys.stdin)
 def handle_touch(channel, event):
     emit("touch.{}:{}".format(channel,1 if event == "press" else 0))
 
-explorerhat.touch.pressed(handle_touch)
-explorerhat.touch.released(handle_touch)
+if explorerhat.has_captouch:
+    explorerhat.touch.pressed(handle_touch)
+    explorerhat.touch.released(handle_touch)
 
 pin_index = {'one':1, 'two':2, 'three':3, 'four':4}
 
@@ -81,7 +97,8 @@ def handle_analog(analog, value):
         last_value[analog.channel] = value
         emit("analog.{}:{}".format(analog.channel,value))
 
-explorerhat.analog.changed(handle_analog, 0.01)
+if explorerhat.has_analog:
+    explorerhat.analog.changed(handle_analog, 0.01)
 
 light_index = ['blue','yellow','red','green']
 output_index = ['one','two','three','four']
@@ -167,18 +184,5 @@ def handle_command(cmd):
 while running:
     cmd = stdin.readline(0.1)
     handle_command(cmd)
-    #emit("analog.1:{}".format(explorerhat.analog.one.read()))
-    #emit("analog.2:{}".format(explorerhat.analog.two.read()))
-    #emit("analog.3:{}".format(explorerhat.analog.three.read()))
-    #emit("analog.4:{}".format(explorerhat.analog.four.read()))
-
-    #emit("input.1:{}".format(explorerhat.input.one.read()))
-    #emit("input.2:{}".format(explorerhat.input.two.read()))
-    #emit("input.3:{}".format(explorerhat.input.three.read()))
-    #emit("input.4:{}".format(explorerhat.input.four.read()))
-
     time.sleep(0.001)
 
-
-sys.stdout.write("Googbye")
-sys.stdout.flush()
