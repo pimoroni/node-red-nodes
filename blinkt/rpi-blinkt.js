@@ -160,8 +160,10 @@ module.exports = function(RED) {
         HAT.open(this);
 
         node.on("input", function(msg) {
-            HAT.send(msg.topic + ":" + msg.payload.toString());
-            REDvInfo("Sending Command: " + msg.topic + ":" + msg.payload.toString());
+            if ( typeof msg.payload === "string" ){
+                HAT.send(msg.topic + ":" + msg.payload.toString());
+                REDvInfo("Sending Command: " + msg.topic + ":" + msg.payload.toString());
+            }
         });
 
         node.on("close", function(done) {
