@@ -58,7 +58,7 @@ def fatal(message):
 
 try:
     import explorerhat
-except:
+except ImportError:
     fatal("Unable to import explorerhat python library")
 
 if not explorerhat.has_analog:

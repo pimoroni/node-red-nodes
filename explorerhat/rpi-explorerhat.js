@@ -206,6 +206,8 @@ module.exports = function(RED) {
  
         var node = this;
 
+        HAT.open(this);
+
         node.on("input", function(msg) {
             if (typeof msg.payload === "number" || msg.payload === "on" || msg.payload == "off"){
                 HAT.send(msg.topic + ":" + msg.payload.toString());
