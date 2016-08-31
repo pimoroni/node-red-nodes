@@ -1,16 +1,24 @@
 var Flotilla = require("./flotilla");
 
 var f = new Flotilla({
-    onOpen: function(){
-        console.log("Flotilla Connected!");
+    onOpen: function(flotilla){
+        console.log("Flotilla Connected! Version:" + flotilla.dockVersion);
     },
-    onUpdate: function(channel, data){
-        console.log("UPDATE!");
+    onUpdate: function(flotilla, args){
+        console.log("UPDATE!", args);
     },
-    onLost: function(channel, module){
-        console.log("LOST! :(");
+    onLost: function(flotilla, args){
+        console.log("LOST! :(", args);
     },
-    onFound: function(channel, module){
-        console.log("FOUND! :D");
+    onFound: function(flotilla, args){
+        console.log("FOUND! :D", args);
+    },
+    onInfo: function(flotilla, message){
+        console.log("INFO: " + message);
+    },
+    onError: function(flotilla, message){
+        console.log("ERROR: " + message);
     }
 });
+
+console.log(f);

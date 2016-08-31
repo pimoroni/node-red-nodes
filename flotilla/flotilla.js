@@ -4,8 +4,59 @@ var assign = require('object.assign').getPolyfill();
 var SerialPort = require("serialport");
 
 var Flotilla = function(settings){
+    var flotilla = this;
+
+    // USB VID/PID for Flotilla Dock
     var FLOTILLA_VID = "0x16d0";
     var FLOTILLA_PID = "0x08c3";
+
+    var moduleHandlers = {
+        /* A collection of handler functions to turn the positional,
+         * string arguments from each input module into friendly values
+         *
+         */
+        'colour': function(args){
+            var red = parseInt(args[0]);
+            var green = parseInt(args[1]);
+            var blue = parseInt(args[2]);
+            var clear = parseInt(args[3]);
+            return {
+                red: Math.round((red/clear) * 255),
+                green: Math.round((green/clear) * 255),
+                blue: Math.round((blue/clear) * 255),
+                clear: clear
+            }
+        },
+        'motion': function(args){
+            return {
+                accelerometer: {
+                    x: parseInt(args[0]),
+                    y: parseInt(args[1]),
+                    z: parseInt(args[2]),
+                },
+                magnetometer: {
+                    x: parseInt(args[3]),
+                    y: parseInt(args[4]),
+                    z: parseInt(args[5]),
+                }
+            }
+        },
+        'light': function(args){
+            return {
+                visible: parseInt(args[0]),
+                ir: parseInt(args[1]),
+                lux: parseInt(args[2])
+            }
+        },
+        'dial': function(args){return {position: parseInt(args[0])}},
+        'slider': function(args){return {position: parseInt(args[0])}},
+        'joystick': function(args){return {x: parseInt(args[1]), y: parseInt(args[2]), button: parseInt(args[0])}},
+        'weather': function(args){
+            var temperature = parseInt(args[0]) / 100;
+            var pressure = parseInt(args[1]) / 1000;
+            return {temperature: temperature, pressure: pressure}
+        }
+    }
 
     var defaultSettings = {
         portName: null
@@ -14,132 +65,214 @@ var Flotilla = function(settings){
     settings = assign({}, defaultSettings, settings);
 
     var identifyTimeout = null;
-
-    var dockVersion = null;
-    var dockSerial = null;
-    var dockUser = null;
-    var dockName = null;
-
-    var identified = false;
-
     var port = null;
 
-    var triggerCallback = function(callback, args){
-        if(typeof callback === "function") callback(args);
+    this.dockVersion = null;
+    this.dockSerial = null;
+    this.dockUser = null;
+    this.dockName = null;
+
+    this.identified = false;
+
+    function triggerCallback(callback, args){
+        if(typeof callback === "function") callback(flotilla, args);
     }
 
-    var connect = function() {
+    function sendCmd(cmd) {
+        /* Send a command to the Dock,
+         * all commands are a single character,
+         * sometimes followed by one or more arguments,
+         * and always suffixed with \r
+         */
+        port.write(cmd + '\r');
+    }
+
+    function requestVersionInfo() {
+        sendCmd('v');
+    }
+
+    function enumerateDevices() {
+        sendCmd('e');
+    }
+
+    function connect() {
+        /* Attempt to connect to the Flotilla Dock and identify it using the 'v' command */
+
         port = new SerialPort(settings.portName, {
             baudRate: 115200,
-            parser: SerialPort.parsers.readline("\n")
+            parser: SerialPort.parsers.readline('\n')
         });
 
         port.on("open", function(error) {
-            sendCmd("v");
-
-            identifyTimeout = setTimeout(function() {
-                console.log("SYSTEM: ERROR: Failed to identify Flotilla dock");
-                triggerCallback(settings.onError, "Failed to identify Flotilla Dock");
-                port.close();
-            }, 4000);
+            port.drain(function(error){
+                requestVersionInfo();
+                port.flush(function(){
+                    identifyTimeout = setTimeout(function() {
+                        //console.log("SYSTEM: ERROR: Failed to identify Flotilla dock");
+                        triggerCallback(settings.onError, "Failed to identify Flotilla Dock");
+                        port.close();
+                    }, 4000);
+                });
+            });
         });
 
         port.on("data", function(data) {
-            console.log("GOT DATA:" + data);
-            if(data[0] == "#"){
+            //console.log("GOT DATA:" + data);
+            data = data.trim();
+            if(data[0] == '#'){
+                console.log("GOT INFO: " + data);
                 handleInfo(data.substring(2));
                 return;
             }
-            if(identified) {
+            if(flotilla.identified) {
                 handleCommand(data)
             };
         });
 
-        port.on("error", function(error) {});
+        port.on("error", function(error) {
+            triggerCallback(settings.onError, error);
+        });
 
-        port.on("disconnect", function() {});
+        port.on("disconnect", function(error) {
+            triggerCallback(settings.onError, error);
+        });
 
         port.on("close", function() {
+            triggerCallback(settings.onClose);
             clearTimeout(identifyTimeout);
         });
     }
 
-    var sendCmd = function(cmd) {
-        port.write(cmd + "\r");
-    }
-
-    var validateIdentity = function(){
-        if([dockVersion, dockSerial, dockUser, dockName].indexOf(null) == -1){
+    function validateIdentity(){
+        /* If a version, serial, username and dockname have been set, the dock is treated as being identified,
+         * the onOpen callback is triggered after successful identification.
+         *
+         */
+    
+        if([flotilla.dockVersion, flotilla.dockSerial, flotilla.dockUser, flotilla.dockName].indexOf(null) == -1){
             clearTimeout(identifyTimeout);
-            identified = true;
-            //console.log("SYSTEM: INFO: Dock Identity Verified");
-            sendCmd('e');
+            flotilla.identified = true;
+            enumerateDevices();
             triggerCallback(settings.onOpen);
         }
     }
 
-    var handleInfo = function(data) {
+    function handleInfo(data) {
+        /* Any message from the Dock starting with "#" is treated as info
+         * many of these are debug messages, apart from the special cases returned in answer to command 'v'
+         *
+         * Version: the dock version number
+         * Serial: A unique serial number for each dock
+         * User: The user-name saved to the dock
+         * Dock: The dock-name saved to the dock
+         *
+         * These special cases are parsed into variables for later use, and used to verify a valid, sane dock
+         * is connected.
+         *
+         */
         //console.log("INFO: " + data);
 
         if(data.substring(0,8) === "Version:"){
-            dockVersion = parseFloat(data.substring(9));
+            flotilla.dockVersion = parseFloat(data.substring(9));
             validateIdentity();
             return;
         }
 
         if(data.substring(0,7) === "Serial:"){
-            dockSerial = data.substring(8);
+            flotilla.dockSerial = data.substring(8);
             validateIdentity();
             return;
         }
 
         if(data.substring(0,5) === "User:"){
-            dockUser = data.substring(6);
+            flotilla.dockUser = data.substring(6);
             validateIdentity();
             return;
         }
 
         if(data.substring(0,5) === "Dock:"){
-            dockName = data.substring(6);
+            flotilla.dockName = data.substring(6);
             validateIdentity();
             return;
         }
+
+        triggerCallback(settings.onInfo, "DOCK: " + data);
     }
 
-    var handleCommand = function(data) {
-        var command = data[0];
-        data = data.substring(2);
+    function parseArgs(module, args){
+        /* Loads the relevant parser function for a module, turning
+         * the positional, string arguments into correctly scaled,
+         * formatted and named arguments for each input module
+         *
+         */
+
+        if(typeof moduleHandlers[module] === "function"){
+            return moduleHandlers[module](args);
+        }
+        
+        return args;
+    }
+
+    function parseCommand(data) {
+        /* Parse a Flotilla Module command into channel, module and args,
+         * use module specific filters to generate objects with named args.
+         *
+         * The nasty regular expression here splits on forward-slash, space and comma,
+         * turning: "5/light 200,225,325" into ["5", "light", "200", "225", "325"]
+         * ie: a set of positional arguments which are always: channel, module, arguments
+         *
+         */
+
+        var args = data.split(/\/| |\,/);
+        var channel = parseInt(args.shift());
+        var module = args.shift();
+        return {
+            channel: channel,
+            module: module,
+            args: parseArgs(module, args)
+        }
+    }
+
+    function handleCommand(data) {
+        /* Handle an incoming command from Flotilla Dock to client. 
+         * These may include module updates, connect and disconnect events, in the format:
+         *
+         *     <cmd> <channel>/<module_type> <data>
+         * 
+         */
+
+        var command = data[0]; //  Get command char
+        data = data.substring(2); // Strip off command char and space separator
         switch(command){
             case 'u': // Module update
-                console.log("UPDATE: " + data);
-                triggerCallback(settings.onUpdate);
+                triggerCallback(settings.onUpdate, parseCommand(data));
                 break;
-            case 'c': // Module disconnected
-                console.log("FOUND: " + data);
+            case 'c': // Module connected
                 triggerCallback(settings.onFound);
                 break;
-            case 'd': // Module connected
-                console.log("LOST: " + data);
+            case 'd': // Module disconnected
                 triggerCallback(settings.onLost);
                 break;
         }
     }
 
     if(settings.portName === null){
+        /* Attempt to auto-detect a Flotilla Dock by picking
+         * the first serial device with a matching VID/PID
+         *
+         */
+
+        triggerCallback(settings.onInfo, "SYSTEM: Trying to auto-detect port");
+
         SerialPort.list(function(err, ports) {
             ports.forEach(function(port, index){
-                /*
-                    comName, manufacturer, serialNumber, pnpId, vendorId, productId
-                */
-                //console.log("Found port: " + port.comName);
                 if(settings.portName === null && port.vendorId == FLOTILLA_VID && port.productId == FLOTILLA_PID){
-                    //console.log("SYSTEM: INFO: Found dock at " + port.comName);
+                    triggerCallback(settings.onInfo, "SYSTEM: Found dock at " + port.comName);
                     settings.portName = port.comName;
                     return;
                 }
             });
             if(settings.portName === null){
-                //console.log("SYSTEM: ERROR: Unable to find Flotilla Dock");
                 triggerCallback(settings.onError, "Unable to find Flotilla Dock");
                 return;
             }
@@ -151,7 +284,15 @@ var Flotilla = function(settings){
         connect();
     }
 
-    return;
+    flotilla.send = function(data){
+        if(!flotilla.identified){
+            triggerCallback(settings.onError, "Flotilla Dock not yet connected");
+            return;
+        }
+        sendCmd(data);
+    };
+
+    return flotilla;
 }
 
 module.exports = Flotilla;
