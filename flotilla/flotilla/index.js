@@ -10,7 +10,7 @@ var Flotilla = function(settings){
     var FLOTILLA_VID = "0x16d0";
     var FLOTILLA_PID = "0x08c3";
 
-    var moduleNames = ['joe','colour','motion','light','dial','slider','joystick','weather','touch','motor','number','matrix','rainbow'];
+    var moduleNames = ['colour','motion','light','dial','slider','joystick','weather','touch','motor','number','matrix','rainbow'];
     var moduleHandlers = {};
 
     var defaultSettings = {
