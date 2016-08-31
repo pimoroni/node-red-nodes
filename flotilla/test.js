@@ -6,6 +6,12 @@ var f = new Flotilla({
     },
     onUpdate: function(flotilla, args){
         console.log("UPDATE!", args);
+        
+        var motor = flotilla.firstOfType("motor");
+
+        if(args.module === "dial" && motor){
+            motor.speed(Math.round((args.position - 512) * 0.12));
+        }
     },
     onLost: function(flotilla, args){
         console.log("LOST! :(", args);

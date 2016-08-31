@@ -55,6 +55,14 @@ var Flotilla = function(settings){
             var temperature = parseInt(args[0]) / 100;
             var pressure = parseInt(args[1]) / 1000;
             return {temperature: temperature, pressure: pressure}
+        },
+
+        'motor': function(args, channel, module){
+            return {
+                speed: function(value){
+                    flotilla.updateModule(channel, [value]);
+                }
+            }
         }
     }
 
@@ -66,6 +74,8 @@ var Flotilla = function(settings){
 
     var identifyTimeout = null;
     var port = null;
+
+    this.modules = [null, null, null, null, null, null, null, null];
 
     this.dockVersion = null;
     this.dockSerial = null;
@@ -120,7 +130,7 @@ var Flotilla = function(settings){
             //console.log("GOT DATA:" + data);
             data = data.trim();
             if(data[0] == '#'){
-                console.log("GOT INFO: " + data);
+                //console.log("GOT INFO: " + data);
                 handleInfo(data.substring(2));
                 return;
             }
@@ -199,7 +209,7 @@ var Flotilla = function(settings){
         triggerCallback(settings.onInfo, "DOCK: " + data);
     }
 
-    function parseArgs(module, args){
+    function parseArgs(channel, module, args){
         /* Loads the relevant parser function for a module, turning
          * the positional, string arguments into correctly scaled,
          * formatted and named arguments for each input module
@@ -207,7 +217,7 @@ var Flotilla = function(settings){
          */
 
         if(typeof moduleHandlers[module] === "function"){
-            return moduleHandlers[module](args);
+            return moduleHandlers[module](args, channel, module);
         }
         
         return args;
@@ -226,11 +236,12 @@ var Flotilla = function(settings){
         var args = data.split(/\/| |\,/);
         var channel = parseInt(args.shift());
         var module = args.shift();
-        return {
-            channel: channel,
-            module: module,
-            args: parseArgs(module, args)
-        }
+        return assign({},{
+                    channel: channel,
+                    module: module
+                },
+                parseArgs(channel, module, args)
+        );
     }
 
     function handleCommand(data) {
@@ -245,13 +256,19 @@ var Flotilla = function(settings){
         data = data.substring(2); // Strip off command char and space separator
         switch(command){
             case 'u': // Module update
-                triggerCallback(settings.onUpdate, parseCommand(data));
+                var m = parseCommand(data);
+                flotilla.modules[m.channel - 1] = m;
+                triggerCallback(settings.onUpdate, m);
                 break;
             case 'c': // Module connected
-                triggerCallback(settings.onFound);
+                var m = parseCommand(data);
+                flotilla.modules[m.channel - 1] = m;
+                triggerCallback(settings.onFound, m);
                 break;
             case 'd': // Module disconnected
-                triggerCallback(settings.onLost);
+                var m = parseCommand(data);
+                flotilla.modules[m.channel - 1] = null;
+                triggerCallback(settings.onLost, m);
                 break;
         }
     }
@@ -284,12 +301,24 @@ var Flotilla = function(settings){
         connect();
     }
 
-    flotilla.send = function(data){
+    flotilla.firstOfType = function(module) {
+        for(var x = 0; x < flotilla.modules.length; x++){
+            if(flotilla.modules[x] && flotilla.modules[x].module == module){
+                return flotilla.modules[x];
+            }
+        }
+    }
+
+    flotilla.send = function(data) {
         if(!flotilla.identified){
             triggerCallback(settings.onError, "Flotilla Dock not yet connected");
             return;
         }
         sendCmd(data);
+    };
+
+    flotilla.updateModule = function(channel, args) {
+        sendCmd("s " + channel + args.join(' '));
     };
 
     return flotilla;
