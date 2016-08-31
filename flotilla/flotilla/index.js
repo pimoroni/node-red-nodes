@@ -10,26 +10,8 @@ var Flotilla = function(settings){
     var FLOTILLA_VID = "0x16d0";
     var FLOTILLA_PID = "0x08c3";
 
-    var moduleHandlers = {
-        /* A collection of handler functions to turn the positional,
-         * string arguments from each input module into friendly values
-         *
-         */
-        'colour': require('./colour'),
-        'motion': require('./motion'), 
-        'light': require('./light'), 
-        'dial': require('./dial'),
-        'slider': require('./slider'),
-        'joystick': require('./joystick'),
-        'weather': require('./weather'),
-        'touch': require('./touch'),
-
-        // Outputs
-        'motor': require('./motor'),
-        'number': require('./number'),
-        'matrix': require('./matrix'),
-        'rainbow': require('./rainbow')
-    }
+    var moduleNames = ['joe','colour','motion','light','dial','slider','joystick','weather','touch','motor','number','matrix','rainbow'];
+    var moduleHandlers = {};
 
     var defaultSettings = {
         portName: null
@@ -237,6 +219,15 @@ var Flotilla = function(settings){
                 break;
         }
     }
+
+    moduleNames.forEach(function(name, index){
+        triggerCallback(settings.onInfo, "Loading " + name);
+        try {
+            moduleHandlers[name] = require('./' + name);
+        } catch (err) {
+            triggerCallback(settings.onError, "Failed to load " + name);
+        }
+    });
 
     if(settings.portName === null){
         /* Attempt to auto-detect a Flotilla Dock by picking
