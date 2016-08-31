@@ -1,5 +1,14 @@
 var Flotilla = require("./flotilla");
 
+Flotilla.listDocks(function(docks){
+
+    console.log("Found " + docks.length.toString() + " connected docks");
+    docks.forEach(function(dock, index){
+        console.log(dock.comName);
+    });
+
+});
+
 var f = new Flotilla({
     onOpen: function(flotilla){
         console.log("Flotilla Connected! Version:" + flotilla.dockVersion);
@@ -31,8 +40,6 @@ var f = new Flotilla({
         console.log("ERROR: " + message);
     }
 });
-
-console.log(f);
 
 var count = 0;
 

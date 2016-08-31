@@ -2,13 +2,14 @@
 
 var assign = require('object.assign').getPolyfill();
 var SerialPort = require("serialport");
+var path = require('path');
+
+// USB VID/PID for Flotilla Dock
+var FLOTILLA_VID = "0x16d0";
+var FLOTILLA_PID = "0x08c3";
 
 var Flotilla = function(settings){
     var flotilla = this;
-
-    // USB VID/PID for Flotilla Dock
-    var FLOTILLA_VID = "0x16d0";
-    var FLOTILLA_PID = "0x08c3";
 
     var moduleNames = ['colour','motion','light','dial','slider','joystick','weather','touch','motor','number','matrix','rainbow'];
     var moduleHandlers = {};
@@ -223,7 +224,7 @@ var Flotilla = function(settings){
     moduleNames.forEach(function(name, index){
         triggerCallback(settings.onInfo, "Loading " + name);
         try {
-            moduleHandlers[name] = require('./' + name);
+            moduleHandlers[name] = require(path.resolve(__dirname, './' + name));
         } catch (err) {
             triggerCallback(settings.onError, "Failed to load " + name);
         }
@@ -237,6 +238,18 @@ var Flotilla = function(settings){
 
         triggerCallback(settings.onInfo, "SYSTEM: Trying to auto-detect port");
 
+        listDocks(function(docks){
+            if(docks.length == 0){
+                triggerCallback(settings.onError, "Unable to find Flotilla Dock");
+                return;
+            }
+
+            triggerCallback(settings.onInfo, "SYSTEM: Found dock at " + docks[0].comName);
+            settings.portName = docks[0].comName;
+            connect();
+        });
+
+        /*
         SerialPort.list(function(err, ports) {
             ports.forEach(function(port, index){
                 if(settings.portName === null && port.vendorId == FLOTILLA_VID && port.productId == FLOTILLA_PID){
@@ -251,6 +264,7 @@ var Flotilla = function(settings){
             }
             connect();
         });
+        */
     }
     else
     {
@@ -280,4 +294,17 @@ var Flotilla = function(settings){
     return flotilla;
 }
 
+function listDocks(callback) {
+    var docks = [];
+    SerialPort.list(function(err, ports) {
+        ports.forEach(function(port, index){
+            if(port.vendorId = FLOTILLA_VID && port.productId == FLOTILLA_PID){
+                docks.push(port);
+            }
+        });
+        callback(docks);
+    });
+};
+
 module.exports = Flotilla;
+module.exports.listDocks = listDocks;
