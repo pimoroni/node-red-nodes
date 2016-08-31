@@ -8,9 +8,14 @@ var f = new Flotilla({
         console.log("UPDATE!", args);
         
         var motor = flotilla.firstOfType("motor");
+        var number = flotilla.firstOfType("number");
 
         if(args.module === "dial" && motor){
             motor.speed(Math.round((args.position - 512) * 0.12));
+        }
+
+        if(args.module === "weather" && number){
+            //number.temperature(args.temperature);
         }
     },
     onLost: function(flotilla, args){
@@ -28,3 +33,27 @@ var f = new Flotilla({
 });
 
 console.log(f);
+
+var count = 0;
+
+setInterval(function(){
+    var number = f.firstOfType("number");
+
+    if(!number) return;
+
+    number.number(Math.sin(count),2,true," ");
+
+    count += 0.1;
+}, 100);
+
+/*
+setInterval(function(){
+
+    var number = f.firstOfType("number");
+
+    if(!number) return;
+
+    number.time(new Date());
+
+}, 100);
+*/
