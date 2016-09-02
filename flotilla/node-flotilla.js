@@ -121,8 +121,11 @@ module.exports = function(RED) {
         var node = this;
 
         this.onUpdate = function(args){
-            if(typeof args[node.input] !== "undefined"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args[node.input]});
+            if(node.input === "all"){
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args});
+            }
+            else if(typeof args[node.input] !== "undefined"){
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module + "/" + node.input, payload: args[node.input]});
             }   
         };
 
@@ -173,6 +176,17 @@ module.exports = function(RED) {
 
     RED.httpAdmin.get("/flotilla/test", function(req,res) {
         console.log(req);
+    });
+
+    RED.httpAdmin.get("/flotilla/module", RED.auth.needsPermission("serial.read"), function(req,res) {
+        var comName = req.query.comName;
+        var channel = parseInt(req.query.channel) - 1;
+        getDock(module,comName, function(dock){
+            res.json(dock.modules[channel]);
+        },
+        function(message){
+            res.json({error:message});
+        });
     });
 
     RED.httpAdmin.get("/flotilla/dock", RED.auth.needsPermission("serial.read"), function(req,res) {
