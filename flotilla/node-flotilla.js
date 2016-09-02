@@ -29,19 +29,9 @@ var flotilla = require("./flotilla");
 */
 
 var docks = {};
-var callbacks = {};
+var inputNodes = [];
 
-function registerCallback(comName, channel, callback, success, err){
-    if(!callbacks[comName]) callbacks[comName] = {};
-
-    callbacks[comName][channel] = callback;
-    console.log("Registering callback: " + comName + " " + channel);
-
-    getDock(comName, success, err);
-}
-
-function getDock(comName, callback, err) {
-    console.log("Getting Dock: " + comName);
+function getDock(module, comName, callback, err) {
 
     if(!comName) err();
     if(docks[comName]) {
@@ -52,7 +42,7 @@ function getDock(comName, callback, err) {
     docks[comName] = new flotilla({
         portName: comName,
         onOpen: function(flotilla, args){
-            console.log(comName + " opened!");
+            module.REDvInfo(comName + " opened!");
 
             if(typeof callback === "function") {
                 callback(flotilla);
@@ -61,28 +51,38 @@ function getDock(comName, callback, err) {
             }            
         },
         onUpdate: function(flotilla, args){
-            var channel = args.channel;
-            if(callbacks[comName] && typeof callbacks[comName][channel] === "function"){
-                callbacks[comName][channel](flotilla, "update", args);
-            }
+            inputNodes.forEach(function(node, index){
+                if(node.comName == comName 
+                && node.channel == args.channel 
+                && typeof node.onUpdate === "function"){
+                    node.onUpdate(args);
+                }
+            });
         },
         onLost: function(flotilla, args){
-            var channel = args.channel;
-            if(callbacks[comName] && typeof callbacks[comName][channel] === "function"){
-                callbacks[comName][channel](flotilla, "lost", args);
-            }
+            inputNodes.forEach(function(node, index){
+                if(node.comName == comName 
+                && node.channel == args.channel 
+                && typeof node.onLost === "function"){
+                    node.onLost(args);
+                }
+            });
         },
         onFound: function(flotilla, args){
-            var channel = args.channel;
-            if(callbacks[comName] && typeof callbacks[comName][channel] === "function"){
-                callbacks[comName][channel](flotilla, "found", args);
-            }
+            inputNodes.forEach(function(node, index){
+                if(node.comName == comName 
+                && node.channel == args.channel 
+                && typeof node.onFound === "function"){
+                    node.onFound(args);       
+                }
+            });
         },
         onInfo: function(flotilla, message){
-            console.log("FLOTILLA(INFO): " + message);
+            module.REDvInfo(message);
         },
         onError: function(flotilla, message){
-            console.log("FLOTILLA(ERROR): " + message);
+            module.REDWarn(message);
+
             if(typeof err === "function") {
                 err(message);
                 err = null;
@@ -97,37 +97,49 @@ function getDock(comName, callback, err) {
 module.exports = function(RED) {
     "use strict";
 
-    function REDvWarn(message){
-        if( RED.settings.verbose ) RED.log.warn("ExplorerHAT: " + message);
-    }
-    
-    function REDvInfo(message){
-        if( RED.settings.verbose ) RED.log.info("ExplorerHAT: " + message);
-    }
+    var module = (function(RED){
+        return {
+            REDWarn: function(message){
+                RED.log.warn("Flotilla: " + message);
+            },
+            REDvWarn: function(message){
+                if( RED.settings.verbose ) RED.log.warn("Flotilla: " + message);
+            },
+            REDvInfo: function(message){
+                if( RED.settings.verbose ) RED.log.info("Flotilla: " + message);
+            }
+        }
+    })(RED);
 
     function FlotillaInput(config) {
         RED.nodes.createNode(this,config);
-        console.log("New Input Node With Config: ", config);
+
         this.comName = config.comName;
         this.channel = parseInt(config.channel);
         this.input = config.input;
 
         var node = this;
 
-        registerCallback(this.comName, this.channel, function(flotilla, evt, args){
-            console.log("Node got event: ", evt, args);
+        this.onUpdate = function(args){
             if(typeof args[node.input] !== "undefined"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: Number(args[node.input])});
-            }
-        },
-        function(flotilla){}, // Successfully registered callback,
-        function(message){}) // Failed to register callback;
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args[node.input]});
+            }   
+        };
+
+        inputNodes.push(node);
+
+        getDock(module,this.comName,function(){},function(){});
+
+        node.on("close", function(done) {
+            inputNodes.splice(inputNodes.indexOf(node),1);
+            done();
+        });
     }
     RED.nodes.registerType("node-flotilla in", FlotillaInput);
 
     function FlotillaOutput(config) {
         RED.nodes.createNode(this,config);
-        console.log("New Output Node With Config: ", config);
+
         this.comName = config.comName;
         this.channel = parseInt(config.channel) - 1;
         this.output = config.output;
@@ -135,9 +147,8 @@ module.exports = function(RED) {
         var node = this;
 
         node.on("input", function(msg) {
-            console.log("Got message", msg, this.comName, this.channel, this.output);
             if (typeof msg.payload === "number"){
-                getDock(node.comName, function(dock){
+                getDock(module,node.comName, function(dock){
                     if(dock.modules[node.channel]){
                         if(typeof dock.modules[node.channel][node.output] === "function"){
                             dock.modules[node.channel][node.output](msg.payload);
@@ -166,7 +177,7 @@ module.exports = function(RED) {
 
     RED.httpAdmin.get("/flotilla/dock", RED.auth.needsPermission("serial.read"), function(req,res) {
         var comName = req.query.comName;
-        getDock(comName, function(dock){
+        getDock(module,comName, function(dock){
             res.json(dock.modules);     
         },
         function(message){
