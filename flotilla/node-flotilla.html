@@ -32,7 +32,7 @@
             return this.name?"node_label_italic":"";
         },
         oneditprepare: function(){
-            var dom_input_comPort = $("#node-input-comPort");
+            var dom_input_comName = $("#node-input-comName");
             var dom_row_channel = $(".row-channel");
             var dom_input_channel = $("#node-input-channel");
             var dom_row_input = $(".row-input");
@@ -49,14 +49,14 @@
                 //console.log(data);
                 data.forEach(function(dock, index){
                     //console.log(dock);
-                    $("<option>").attr("value",dock.comName).text(dock.comName).appendTo(dom_input_comPort);
+                    $("<option>").attr("value",dock.comName).text(dock.comName).appendTo(dom_input_comName);
                 });
-                dom_input_comPort.val(widget.comName);
-                dom_input_comPort.trigger('change');
+                dom_input_comName.val(widget.comName);
+                dom_input_comName.trigger('change');
             });
 
-            dom_input_comPort.on("change",function(){
-                var comPort = dom_input_comPort.val();
+            dom_input_comName.on("change",function(){
+                var comName = dom_input_comName.val();
 
                 dom_input_channel.find("option").remove();
                 $("<option>").attr("value","").html("Please select&hellip;").appendTo(dom_input_channel);
@@ -64,9 +64,9 @@
                 dom_row_channel.hide();
                 dom_row_input.hide();
 
-                if(comPort == "") return;
+                if(comName == "") return;
              
-                $.getJSON("flotilla/dock?comName=" + dom_input_comPort.val(), function(data) {
+                $.getJSON("flotilla/dock?comName=" + dom_input_comName.val(), function(data) {
                     //console.log(data);
                     data.forEach(function(module, index){
                         if(module === null) return;
@@ -80,15 +80,15 @@
             });
 
             dom_input_channel.on("change",function(){
-                var comPort = dom_input_comPort.val();
+                var comName = dom_input_comName.val();
                 var channel = dom_input_channel.val();    
 
                 dom_input_input.find("option").remove();
                 $("<option>").attr("value","all").html("All").appendTo(dom_input_input);
 
-                if(comPort == "") return;
+                if(comName == "") return;
 
-                $.getJSON("flotilla/module?comName=" + comPort + "&channel=" + channel, function(data) {
+                $.getJSON("flotilla/module?comName=" + comName + "&channel=" + channel, function(data) {
                     for(var input in data){
                         if(["channel","module"].indexOf(input) == -1){
                             $("<option>").attr("value",input).text(input).appendTo(dom_input_input);
@@ -142,8 +142,8 @@
 
 <script type="text/x-red" data-template-name="node-flotilla in">
 <div class="form-row">
-    <label for="node-input-comPort"><i class="fa fa-tag"></i> Flotilla Dock</label>
-    <select id="node-input-comPort"><option value="">Please select&hellip;</option></select>
+    <label for="node-input-comName"><i class="fa fa-tag"></i> Flotilla Dock</label>
+    <select id="node-input-comName"><option value="">Please select&hellip;</option></select>
 </div>
 <div class="form-row row-channel">
     <label for="node-input-channel"><i class="fa fa-tag"></i> Channel</label>
@@ -157,8 +157,8 @@
 
 <script type="text/x-red" data-template-name="node-flotilla out">
 <div class="form-row">
-    <label for="node-input-comPort"><i class="fa fa-tag"></i> Com Port</label>
-    <input type="text" id="node-input-comPort" value="/dev/ttyACM0">
+    <label for="node-input-comName"><i class="fa fa-tag"></i> Com Port</label>
+    <input type="text" id="node-input-comName" value="/dev/ttyACM0">
 </div>
 <div class="form-row">
     <label for="node-input-channel"><i class="fa fa-tag"></i> Channel</label>
