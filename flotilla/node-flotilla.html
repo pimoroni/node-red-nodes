@@ -68,14 +68,16 @@
              
                 $.getJSON("flotilla/dock?comName=" + dom_input_comName.val(), function(data) {
                     //console.log(data);
-                    data.forEach(function(module, index){
-                        if(module === null) return;
+                    if(data){
+                        data.forEach(function(module, index){
+                            if(module === null || !module.input) return;
 
-                        $("<option>").attr("value",module.channel).text(module.channel + ": " + module.module).appendTo(dom_input_channel);
-                    });
-                    dom_input_channel.val(widget.channel);
-                    dom_input_channel.trigger('change');
-                    dom_row_channel.show(); 
+                            $("<option>").attr("value",module.channel).text(module.channel + ": " + module.module).appendTo(dom_input_channel);
+                        });
+                        dom_input_channel.val(widget.channel);
+                        dom_input_channel.trigger('change');
+                        dom_row_channel.show(); 
+                    }
                 });
             });
 
@@ -89,13 +91,15 @@
                 if(comName == "") return;
 
                 $.getJSON("flotilla/module?comName=" + comName + "&channel=" + channel, function(data) {
-                    for(var input in data){
-                        if(["channel","module"].indexOf(input) == -1){
-                            $("<option>").attr("value",input).text(input).appendTo(dom_input_input);
+                    if(data.input){
+                        for(var input in data.input){
+                            if(["channel","module"].indexOf(input) == -1){
+                                $("<option>").attr("value",input).text(input).appendTo(dom_input_input);
+                            }
                         }
+                        dom_input_input.val(widget.input);
+                        dom_row_input.show();
                     }
-                    dom_input_input.val(widget.input);
-                    dom_row_input.show();
                 });
             });
             
@@ -119,6 +123,29 @@
         },
         labelStyle: function() {
             return this.name?"node_label_italic":"";
+        },
+        oneditprepare: function(){
+            var dom_input_comName = $("#node-input-comName");
+            var dom_row_channel = $(".row-channel");
+            var dom_input_channel = $("#node-input-channel");
+            var dom_row_input = $(".row-input");
+            var dom_input_input = $("#node-input-input");
+
+            var widget = this;
+
+            dom_row_channel.hide();
+            dom_row_input.hide();
+
+            $.getJSON("flotilla/docks",function(data) {
+                //console.log(data);
+                data.forEach(function(dock, index){
+                    //console.log(dock);
+                    $("<option>").attr("value",dock.comName).text(dock.comName).appendTo(dom_input_comName);
+                });
+                dom_input_comName.val(widget.comName);
+                dom_input_comName.trigger('change');
+            });
+
         }
     });
     RED.nodes.registerType("node-flotilla modify",{

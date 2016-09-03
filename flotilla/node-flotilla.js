@@ -33,7 +33,11 @@ var inputNodes = [];
 
 function getDock(module, comName, callback, err) {
 
-    if(!comName) err();
+    if(typeof comName === "undefined" || comName === null || comName === "null") {
+        err("Invalid com port");
+        return;
+    }
+
     if(docks[comName]) {
         callback(docks[comName]);
         return;
@@ -122,10 +126,10 @@ module.exports = function(RED) {
 
         this.onUpdate = function(args){
             if(node.input === "all"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args});
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args.input});
             }
-            else if(typeof args[node.input] !== "undefined"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module + "/" + node.input, payload: args[node.input]});
+            else if(typeof args.input[node.input] !== "undefined"){
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module + "/" + node.input, payload: args.input[node.input]});
             }   
         };
 
