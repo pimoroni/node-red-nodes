@@ -1,7 +1,9 @@
 module.exports = function(flotilla, args, channel, module){
     return {
-        speed: function(value){
-            flotilla.updateModule(channel, [value]);
+        output: {
+            speed: function(value){
+                flotilla.updateModule(channel, [value]);
+            }
         }
     }
 }
