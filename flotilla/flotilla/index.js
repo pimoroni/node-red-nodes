@@ -3,6 +3,7 @@
 var assign = require('object.assign').getPolyfill();
 var SerialPort = require("serialport");
 var path = require('path');
+var encoding = require(path.resolve(__dirname, './encoding'));
 
 // USB VID/PID for Flotilla Dock
 var FLOTILLA_VID = "0x16d0";
@@ -21,6 +22,9 @@ var Flotilla = function(settings){
     settings = assign({}, defaultSettings, settings);
 
     var identifyTimeout = null;
+    var identifyWait = 500;
+    var retries = 10;
+
     var port = null;
 
     this.modules = [null, null, null, null, null, null, null, null];
@@ -45,8 +49,11 @@ var Flotilla = function(settings){
         port.write(cmd + '\r');
     }
 
-    function requestVersionInfo() {
-        sendCmd('v');
+    function requestVersionInfo(done) {
+        setTimeout(function(){
+            sendCmd('v');
+            done();
+        },250);
     }
 
     function enumerateDevices() {
@@ -58,18 +65,26 @@ var Flotilla = function(settings){
 
         port = new SerialPort(settings.portName, {
             baudRate: 115200,
-            parser: SerialPort.parsers.readline('\n')
+            parser: encoding.flotillaReadline()
         });
 
         port.on("open", function(error) {
             port.drain(function(error){
-                requestVersionInfo();
-                port.flush(function(){
-                    identifyTimeout = setTimeout(function() {
-                        //console.log("SYSTEM: ERROR: Failed to identify Flotilla dock");
-                        triggerCallback(settings.onError, "Failed to identify Flotilla Dock");
-                        port.close();
-                    }, 4000);
+                requestVersionInfo(function(){
+                    port.flush(function(){
+                        identifyTimeout = setInterval(function() {
+                            if(retries == 0){
+                                clearInterval(identifyTimeout);
+                                //console.log("SYSTEM: ERROR: Failed to identify Flotilla dock");
+                                triggerCallback(settings.onError, "Failed to identify Flotilla Dock");
+                                port.close();
+                                return;
+                            }
+                            triggerCallback(settings.onInfo, "Retrying Dock identification");
+                            sendCmd('v');
+                            retries--;
+                        }, identifyWait);
+                    });
                 });
             });
         });
@@ -108,7 +123,7 @@ var Flotilla = function(settings){
          */
     
         if([flotilla.dockVersion, flotilla.dockSerial, flotilla.dockUser, flotilla.dockName].indexOf(null) == -1){
-            clearTimeout(identifyTimeout);
+            clearInterval(identifyTimeout);
             flotilla.identified = true;
             enumerateDevices();
             triggerCallback(settings.onOpen);
