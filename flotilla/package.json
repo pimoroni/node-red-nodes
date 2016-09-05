@@ -1,5 +1,5 @@
 {
-    "name"          : "node-red-node-flotilla",
+    "name"          : "node-red-node-contrib-flotilla",
     "version"       : "0.0.1",
     "description"   : "Node-RED nodes to talk to Pimoroni Flotilla",
     "dependencies"  : {
