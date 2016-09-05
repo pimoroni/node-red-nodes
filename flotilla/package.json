@@ -1,0 +1,25 @@
+{
+    "name"          : "node-red-node-flotilla",
+    "version"       : "0.0.1",
+    "description"   : "Node-RED nodes to talk to Pimoroni Flotilla",
+    "dependencies"  : {
+        "serialport"   : "~3.1.2"
+    },
+    "repository" : {
+        "type":"git",
+        "url":"https://github.com/pimoroni/node-red-nodes/tree/master/flotilla"
+    },
+    "license": "Apache-2.0",
+    "keywords": [ "node-red", "flotilla" ],
+    "node-red": {
+        "version": ">=0.13.0",
+        "nodes": {
+            "flotilla": "node-flotilla.js"
+        }
+    },
+    "author": {
+        "name": "Philip Howard",
+        "email": "phil@pimoroni.com",
+        "url": "http://pimoroni.com"
+    }
+}
