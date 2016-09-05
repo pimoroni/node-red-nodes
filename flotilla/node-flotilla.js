@@ -30,6 +30,21 @@ var flotilla = require("./flotilla");
 
 var docks = {};
 var inputNodes = [];
+var outputNodes = [];
+
+function findDock(module, serial, callback, err) {
+    for(var comName in docks){
+        if(typeof comName === "undefined") continue;
+
+        var dock = docks[comName];
+
+        if(dock.dockSerial === serial){
+            callback(dock);
+            return;
+        }
+    }
+    callback(err);
+}
 
 function getDock(module, comName, callback, err) {
 
@@ -52,7 +67,7 @@ function getDock(module, comName, callback, err) {
         },
         onUpdate: function(flotilla, args){
             inputNodes.forEach(function(node, index){
-                if(node.comName == comName 
+                if(node.serial == flotilla.dockSerial
                 && node.channel == args.channel 
                 && typeof node.onUpdate === "function"){
                     node.onUpdate(args);
@@ -61,8 +76,8 @@ function getDock(module, comName, callback, err) {
         },
         onLost: function(flotilla, args){
             inputNodes.forEach(function(node, index){
-                if(node.comName == comName 
-                && node.channel == args.channel 
+                if(node.serial == flotilla.dockSerial
+                && node.channel == args.channel
                 && typeof node.onLost === "function"){
                     node.onLost(args);
                 }
@@ -70,8 +85,8 @@ function getDock(module, comName, callback, err) {
         },
         onFound: function(flotilla, args){
             inputNodes.forEach(function(node, index){
-                if(node.comName == comName 
-                && node.channel == args.channel 
+                if(node.serial == flotilla.dockSerial
+                && node.channel == args.channel
                 && typeof node.onFound === "function"){
                     node.onFound(args);       
                 }
@@ -111,10 +126,24 @@ module.exports = function(RED) {
         }
     })(RED);
 
+    var RefreshDocksFrequency = 4000; // Run Refresh Docks every n/1000 seconds
+
+    function RefreshDocks() {
+        module.REDvInfo("Polling for new Docks...");
+
+        flotilla.listDocks(function(docks){
+            docks.forEach(function(dock, index){
+                getDock(module,dock.comName,function(){},function(){});
+            });
+        });
+    }
+
+    var PollDocks = setInterval(RefreshDocks,RefreshDocksFrequency);
+
     function FlotillaInput(config) {
         RED.nodes.createNode(this,config);
 
-        this.comName = config.comName;
+        this.serial = config.serial;
         this.channel = parseInt(config.channel);
         this.input = config.input;
 
@@ -131,8 +160,6 @@ module.exports = function(RED) {
 
         inputNodes.push(node);
 
-        getDock(module,this.comName,function(){},function(){});
-
         node.on("close", function(done) {
             inputNodes.splice(inputNodes.indexOf(node),1);
             done();
@@ -143,7 +170,7 @@ module.exports = function(RED) {
     function FlotillaOutput(config) {
         RED.nodes.createNode(this,config);
 
-        this.comName = config.comName;
+        this.serial = config.serial;
         this.channel = parseInt(config.channel) - 1;
         this.output = config.output;
 
@@ -151,14 +178,21 @@ module.exports = function(RED) {
 
         node.on("input", function(msg) {
             if (typeof msg.payload === "number"){
-                getDock(module,node.comName, function(dock){
+                findDock(module,node.serial, function(dock){
                     if(dock.modules[node.channel]){
                         if(typeof dock.modules[node.channel][node.output] === "function"){
                             dock.modules[node.channel][node.output](msg.payload);
                         }
                     }
-                });           
+                }, function(err){});           
             }
+        });
+
+        outputNodes.push(node);
+
+        node.on("close", function(done) {
+            outputNodes.splice(outputNodes.indexOf(node),1);
+            done();
         });
     }
     RED.nodes.registerType("node-flotilla out", FlotillaOutput);
@@ -169,9 +203,7 @@ module.exports = function(RED) {
     RED.nodes.registerType("node-flotilla modify", FlotillaModify);
 
     RED.httpAdmin.get("/flotilla/docks", RED.auth.needsPermission("serial.read"), function(req,res) {
-        flotilla.listDocks(function(docks){
-            res.json(docks);
-        });
+        res.json(docks);
     });
 
     RED.httpAdmin.get("/flotilla/test", function(req,res) {
@@ -179,9 +211,9 @@ module.exports = function(RED) {
     });
 
     RED.httpAdmin.get("/flotilla/module", RED.auth.needsPermission("serial.read"), function(req,res) {
-        var comName = req.query.comName;
+        var serial = req.query.serial;
         var channel = parseInt(req.query.channel) - 1;
-        getDock(module,comName, function(dock){
+        findDock(module, serial, function(dock){
             res.json(dock.modules[channel]);
         },
         function(message){
@@ -190,12 +222,13 @@ module.exports = function(RED) {
     });
 
     RED.httpAdmin.get("/flotilla/dock", RED.auth.needsPermission("serial.read"), function(req,res) {
-        var comName = req.query.comName;
-        getDock(module,comName, function(dock){
+        var serial = req.query.serial;
+        findDock(module, serial, function(dock){
             res.json(dock.modules);     
         },
         function(message){
             res.json({error:message});
         });
     });
+
 };

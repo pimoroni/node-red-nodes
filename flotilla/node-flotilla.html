@@ -18,9 +18,6 @@
         color: '#c6dbef',
         defaults: {
             name: { value: "" },
-            comName: { value: "/dev/ttyACM0" },
-            channel: { value: 5 },
-            input: { value: "accelerometer" }
         },
         inputs:0,
         outputs:1,
@@ -32,7 +29,7 @@
             return this.name?"node_label_italic":"";
         },
         oneditprepare: function(){
-            var dom_input_comPort = $("#node-input-comPort");
+            var dom_input_serial = $("#node-input-serial");
             var dom_row_channel = $(".row-channel");
             var dom_input_channel = $("#node-input-channel");
             var dom_row_input = $(".row-input");
@@ -46,17 +43,25 @@
             dom_row_input.hide();
 
             $.getJSON("flotilla/docks",function(data) {
-                //console.log(data);
-                data.forEach(function(dock, index){
-                    //console.log(dock);
-                    $("<option>").attr("value",dock.comName).text(dock.comName).appendTo(dom_input_comPort);
-                });
-                dom_input_comPort.val(widget.comName);
-                dom_input_comPort.trigger('change');
+                console.log(data);
+
+                for(var comName in data){
+                    if(typeof comName === "undefined") continue;
+
+                    var dock = data[comName];
+
+                    var title = dock.dockName + " (" + comName + ")";
+
+                    $("<option>").attr("value",dock.dockSerial).text(title).appendTo(dom_input_serial);
+
+                }
+
+                dom_input_serial.val(widget.serial);
+                dom_input_serial.trigger('change');
             });
 
-            dom_input_comPort.on("change",function(){
-                var comPort = dom_input_comPort.val();
+            dom_input_serial.on("change",function(){
+                var serial = dom_input_serial.val();
 
                 dom_input_channel.find("option").remove();
                 $("<option>").attr("value","").html("Please select&hellip;").appendTo(dom_input_channel);
@@ -64,9 +69,9 @@
                 dom_row_channel.hide();
                 dom_row_input.hide();
 
-                if(comPort == "") return;
+                if(serial == "") return;
              
-                $.getJSON("flotilla/dock?comName=" + dom_input_comPort.val(), function(data) {
+                $.getJSON("flotilla/dock?serial=" + dom_input_serial.val(), function(data) {
                     //console.log(data);
                     data.forEach(function(module, index){
                         if(module === null) return;
@@ -80,15 +85,15 @@
             });
 
             dom_input_channel.on("change",function(){
-                var comPort = dom_input_comPort.val();
+                var serial = dom_input_serial.val();
                 var channel = dom_input_channel.val();    
 
                 dom_input_input.find("option").remove();
                 $("<option>").attr("value","all").html("All").appendTo(dom_input_input);
 
-                if(comPort == "") return;
+                if(serial == "") return;
 
-                $.getJSON("flotilla/module?comName=" + comPort + "&channel=" + channel, function(data) {
+                $.getJSON("flotilla/module?serial=" + serial + "&channel=" + channel, function(data) {
                     for(var input in data){
                         if(["channel","module"].indexOf(input) == -1){
                             $("<option>").attr("value",input).text(input).appendTo(dom_input_input);
@@ -107,9 +112,6 @@
         color: '#c6dbef',
         defaults: {
             name: { value: "" },
-            comName: { value: "/dev/ttyACM0" },
-            channel: { value: 8 },
-            output: { value: "speed" }
         },
         inputs:1,
         outputs:0,
@@ -119,7 +121,81 @@
         },
         labelStyle: function() {
             return this.name?"node_label_italic":"";
+        },
+        oneditprepare: function(){
+            var dom_input_serial = $("#node-input-serial");
+            var dom_row_channel = $(".row-channel");
+            var dom_input_channel = $("#node-input-channel");
+            var dom_row_input = $(".row-input");
+            var dom_input_input = $("#node-input-input");
+
+            var widget = this;
+
+            dom_row_channel.hide();
+            dom_row_input.hide();
+
+            $.getJSON("flotilla/docks",function(data) {
+                for(var comName in data){
+                    if(typeof comName === "undefined") continue;
+
+                    var dock = data[comName];
+
+                    var title = dock.dockName + " (" + comName + ")";
+
+                    $("<option>").attr("value",dock.dockSerial).text(title).appendTo(dom_input_serial);
+
+                }
+
+                dom_input_serial.val(widget.serial);
+                dom_input_serial.trigger('change');
+            });
+
+            dom_input_serial.on("change",function(){
+                var serial = dom_input_serial.val();
+
+                dom_input_channel.find("option").remove();
+                $("<option>").attr("value","").html("Please select&hellip;").appendTo(dom_input_channel);
+
+                dom_row_channel.hide();
+                dom_row_input.hide();
+
+                if(serial == "") return;
+             
+                $.getJSON("flotilla/dock?serial=" + dom_input_serial.val(), function(data) {
+                    //console.log(data);
+                    data.forEach(function(module, index){
+                        if(module === null) return;
+
+                        $("<option>").attr("value",module.channel).text(module.channel + ": " + module.module).appendTo(dom_input_channel);
+                    });
+                    dom_input_channel.val(widget.channel);
+                    dom_input_channel.trigger('change');
+                    dom_row_channel.show(); 
+                });
+            });
+
+            dom_input_channel.on("change",function(){
+                var serial = dom_input_serial.val();
+                var channel = dom_input_channel.val();    
+
+                dom_input_input.find("option").remove();
+                $("<option>").attr("value","all").html("All").appendTo(dom_input_input);
+
+                if(serial == "") return;
+
+                $.getJSON("flotilla/module?serial=" + serial + "&channel=" + channel, function(data) {
+                    for(var output in data){
+                        if(["channel","module"].indexOf(output) == -1){
+                            $("<option>").attr("value",input).text(input).appendTo(dom_input_input);
+                        }
+                    }
+                    dom_input_input.val(widget.input);
+                    dom_row_input.show();
+                });
+            });
+            
         }
+
     });
     RED.nodes.registerType("node-flotilla modify",{
         category: "Flotilla",
@@ -142,8 +218,8 @@
 
 <script type="text/x-red" data-template-name="node-flotilla in">
 <div class="form-row">
-    <label for="node-input-comPort"><i class="fa fa-tag"></i> Flotilla Dock</label>
-    <select id="node-input-comPort"><option value="">Please select&hellip;</option></select>
+    <label for="node-input-serial"><i class="fa fa-tag"></i> Flotilla Dock</label>
+    <select id="node-input-serial"><option value="">Please select&hellip;</option></select>
 </div>
 <div class="form-row row-channel">
     <label for="node-input-channel"><i class="fa fa-tag"></i> Channel</label>
@@ -157,16 +233,16 @@
 
 <script type="text/x-red" data-template-name="node-flotilla out">
 <div class="form-row">
-    <label for="node-input-comPort"><i class="fa fa-tag"></i> Com Port</label>
-    <input type="text" id="node-input-comPort" value="/dev/ttyACM0">
+    <label for="node-input-serial"><i class="fa fa-tag"></i> Flotilla Dock</label>
+    <select id="node-input-serial"><option value="">Please select&hellip;</option></select>
 </div>
-<div class="form-row">
+<div class="form-row row-channel">
     <label for="node-input-channel"><i class="fa fa-tag"></i> Channel</label>
-    <input type="text" id="node-input-channel" value="7">
+    <select id="node-input-channel"></select>
 </div>
-<div class="form-row">
-    <label for="node-input-output"><i class="fa fa-tag"></i> Output</label>
-    <input type="text" id="node-input-output" value="position">
+<div class="form-row row-input">
+    <label for="node-input-input"><i class="fa fa-tag"></i> Input</label>
+    <select id="node-input-input"></select>
 </div>
 </script>
 

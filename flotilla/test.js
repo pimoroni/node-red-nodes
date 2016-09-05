@@ -43,6 +43,10 @@ var f = new Flotilla({
 
 var count = 0;
 
+setTimeout(function(){
+    console.log(f.dockName, f.dockUser);
+},3000);
+/*
 setInterval(function(){
     var number = f.firstOfType("number");
 
@@ -52,7 +56,7 @@ setInterval(function(){
 
     count += 0.1;
 }, 100);
-
+*/
 /*
 setInterval(function(){
 
