@@ -237,7 +237,7 @@ var Flotilla = function(settings){
     }
 
     moduleNames.forEach(function(name, index){
-        triggerCallback(settings.onInfo, "Loading " + name);
+        //triggerCallback(settings.onInfo, "Loading " + name);
         try {
             moduleHandlers[name] = require(path.resolve(__dirname, './' + name));
         } catch (err) {

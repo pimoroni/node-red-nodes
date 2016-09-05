@@ -79,58 +79,63 @@ module.exports = function(flotilla, args, channel, module){
     }
 
     return {
-        time: function(d){
-            if(!(d instanceof Date)) {
-                return;
-            }
-            var dparts = d.toISOString().split(/-|T|:|\./);
-            var colon = parseInt(dparts[5]) % 2 ? ":" : ""; // Alternates between 1 and 0
-            var dstring = dparts[3] + colon + dparts[4]; // HHMM
-            update(dstring);
-        },
-        temperature: function(temp){
-            if(typeof temp !== "number") {
-                return;
-            }
-            temp = temp.toFixed(1);
-            if(temp.length < 3) temp = " " + temp;
-
-            update(temp + "'C");
-        },
-        number: function(number, decimals, alignRight, padding){
-            /* Display a number:
-             * - from 0 to 9999
-             * - from 0 to 999.9
-             * - from 0 to 99.99
-             * - from 0 to 9.999
-             */
-
-            if(typeof number !== "number") {
-                return;
-            }
-
-            var max = 9999;
-
-            decimals = decimals || 0;
-            if(decimals > 3) decimals = 3;
-
-            padding = padding || " ";
-            if([':','.','\''].indexOf(padding) > -1 || padding.length == 0) padding = "";
-
-            if(number < 0) max = 999;
-
-            if(number > max / Math.pow(10,decimals)){
-                number = max / Math.pow(10,decimals);
-            }
-            number = number.toFixed(decimals);
-
-            if(alignRight){
-                while(number.replace(/\:|\.|\'/,'').length < 4){
-                    number = padding + number
+        output: {
+            time: function(d){
+                if(typeof d === "number") {
+                    d = new Date(d);
                 }
-            }
+                if(!(d instanceof Date)) {
+                    return;
+                }
+                var dparts = d.toISOString().split(/-|T|:|\./);
+                var colon = parseInt(dparts[5]) % 2 ? ":" : ""; // Alternates between 1 and 0
+                var dstring = dparts[3] + colon + dparts[4]; // HHMM
+                update(dstring);
+            },
+            temperature: function(temp){
+                if(typeof temp !== "number") {
+                    return;
+                }
+                temp = temp.toFixed(1);
+                if(temp.length < 3) temp = " " + temp;
 
-            update(number)
+                update(temp + "'C");
+            },
+            number: function(number, decimals, alignRight, padding){
+                /* Display a number:
+                 * - from 0 to 9999
+                 * - from 0 to 999.9
+                 * - from 0 to 99.99
+                 * - from 0 to 9.999
+                 */
+
+                if(typeof number !== "number") {
+                    return;
+                }
+
+                var max = 9999;
+
+                decimals = decimals || 0;
+                if(decimals > 3) decimals = 3;
+
+                padding = padding || " ";
+                if([':','.','\''].indexOf(padding) > -1 || padding.length == 0) padding = "";
+
+                if(number < 0) max = 999;
+
+                if(number > max / Math.pow(10,decimals)){
+                    number = max / Math.pow(10,decimals);
+                }
+                number = number.toFixed(decimals);
+
+                if(alignRight){
+                    while(number.replace(/\:|\.|\'/,'').length < 4){
+                        number = padding + number
+                    }
+                }
+
+                update(number)
+            }
         }
     }
 }

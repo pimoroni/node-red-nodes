@@ -43,12 +43,16 @@ function findDock(module, serial, callback, err) {
             return;
         }
     }
-    callback(err);
+    err("Unable to find Dock: " + serial);
 }
 
 function getDock(module, comName, callback, err) {
 
-    if(!comName) err();
+    if(typeof comName === "undefined" || comName === null || comName === "null") {
+        err("Invalid com port");
+        return;
+    }
+
     if(docks[comName]) {
         callback(docks[comName]);
         return;
@@ -143,18 +147,18 @@ module.exports = function(RED) {
     function FlotillaInput(config) {
         RED.nodes.createNode(this,config);
 
-        this.serial = config.serial;
-        this.channel = parseInt(config.channel);
-        this.input = config.input;
+        this.serial = config.flotillaSerial;
+        this.channel = parseInt(config.flotillaChannel);
+        this.input = config.flotillaInput;
 
         var node = this;
 
         this.onUpdate = function(args){
             if(node.input === "all"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args});
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module, payload: args.input});
             }
-            else if(typeof args[node.input] !== "undefined"){
-                node.send({topic:"flotilla/" + args.channel + "/" + args.module + "/" + node.input, payload: args[node.input]});
+            else if(typeof args.input[node.input] !== "undefined"){
+                node.send({topic:"flotilla/" + args.channel + "/" + args.module + "/" + node.input, payload: args.input[node.input]});
             }   
         };
 
@@ -170,18 +174,18 @@ module.exports = function(RED) {
     function FlotillaOutput(config) {
         RED.nodes.createNode(this,config);
 
-        this.serial = config.serial;
-        this.channel = parseInt(config.channel) - 1;
-        this.output = config.output;
+        this.serial = config.flotillaSerial;
+        this.channel = parseInt(config.flotillaChannel) - 1;
+        this.output = config.flotillaOutput;
 
         var node = this;
 
         node.on("input", function(msg) {
             if (typeof msg.payload === "number"){
-                findDock(module,node.serial, function(dock){
+                findDock(module, node.serial, function(dock){
                     if(dock.modules[node.channel]){
-                        if(typeof dock.modules[node.channel][node.output] === "function"){
-                            dock.modules[node.channel][node.output](msg.payload);
+                        if(typeof dock.modules[node.channel].output[node.output] === "function"){
+                            dock.modules[node.channel].output[node.output](msg.payload);
                         }
                     }
                 }, function(err){});           
@@ -206,15 +210,16 @@ module.exports = function(RED) {
         res.json(docks);
     });
 
-    RED.httpAdmin.get("/flotilla/test", function(req,res) {
-        console.log(req);
-    });
-
     RED.httpAdmin.get("/flotilla/module", RED.auth.needsPermission("serial.read"), function(req,res) {
         var serial = req.query.serial;
         var channel = parseInt(req.query.channel) - 1;
         findDock(module, serial, function(dock){
-            res.json(dock.modules[channel]);
+            res.send(JSON.stringify(dock.modules[channel], function(k,v){
+                if(typeof v === "function"){
+                    return "function";
+                }
+                return v;
+            }));
         },
         function(message){
             res.json({error:message});

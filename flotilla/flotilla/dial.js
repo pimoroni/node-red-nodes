@@ -1,1 +1,7 @@
-module.exports = function(flotilla, args){return {position: parseInt(args[0])}}
+module.exports = function(flotilla, args){
+    return {
+        input: {
+            position: parseInt(args[0])
+        }
+    }
+}
