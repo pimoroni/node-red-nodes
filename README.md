@@ -6,7 +6,18 @@ These nodes are for the Raspberry Pi only. Please also make sure you have instal
 
 ## Installing
 
-Currently these are a work in progress, and aren't available via npm.
+### Flotilla
+
+To install Flotilla just change into your node-red user directory and install like so:
+
+```
+cd ~/.node-red/
+npm install node-red-node-contrib-flotilla
+```
+
+### Everything else...
+
+Currently the individual add-on boards are a work in progress, and aren't available via npm.
 
 To install them, you should create/enter the folder:
 
