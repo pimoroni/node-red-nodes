@@ -1,9 +1,9 @@
 {
     "name"          : "node-red-node-contrib-flotilla",
-    "version"       : "0.0.1",
+    "version"       : "0.0.4",
     "description"   : "Node-RED nodes to talk to Pimoroni Flotilla",
     "dependencies"  : {
-        "pimoroni-flotilla"   : "0.0.1"
+        "pimoroni-flotilla"   : "0.0.2"
     },
     "repository" : {
         "type":"git",

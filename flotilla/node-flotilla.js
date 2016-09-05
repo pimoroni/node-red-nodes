@@ -1,4 +1,4 @@
-var flotilla = require("./flotilla");
+var flotilla = require("pimoroni-flotilla");
 
 /*
  * Flotilla Node-RED Node
