@@ -8,6 +8,6 @@ To install, change to your Node-RED user directory and run npm install, like so:
 
 ```
 cd ~/.node-red
-npm install node-red-node-contrib-flotilla
+npm install node-red-contrib-flotilla
 ```
 
