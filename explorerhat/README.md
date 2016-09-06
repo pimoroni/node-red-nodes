@@ -1,4 +1,4 @@
-# node-red-node-contrib-explorerhat
+# node-red-contrib-explorerhat
 
 Node-RED nodes to talk to Pimoroni's Explorer HAT hardware.
 
@@ -14,5 +14,5 @@ To install, change to your Node-RED user directory and run npm install, like so:
 
 ```
 cd ~/.node-red
-npm install node-red-node-contrib-explorerhat
+npm install node-red-contrib-explorerhat
 ```

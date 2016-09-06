@@ -1,4 +1,4 @@
-# node-red-node-contrib-unicornhat
+# node-red-contrib-unicornhat
 
 Node-RED nodes to talk to Pimoroni's Unicorn HAT hardware.
 
@@ -14,5 +14,5 @@ Then, to install change to your Node-RED user directory and run npm install, lik
 
 ```
 cd ~/.node-red
-npm install node-red-node-contrib-unicornhat
+npm install node-red-contrib-unicornhat
 ```
