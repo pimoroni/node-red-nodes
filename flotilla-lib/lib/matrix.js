@@ -30,7 +30,9 @@ module.exports = function(flotilla, args, channel, module){
     }
 
     return {
-        set_pixel: set_pixel,
-        show: update
+        output: {
+            set_pixel: set_pixel,
+            show: update
+        }
     };
 }

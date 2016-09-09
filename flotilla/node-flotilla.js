@@ -181,15 +181,22 @@ module.exports = function(RED) {
         var node = this;
 
         node.on("input", function(msg) {
-            if (typeof msg.payload === "number"){
+
                 findDock(module, node.serial, function(dock){
                     if(dock.modules[node.channel]){
                         if(typeof dock.modules[node.channel].output[node.output] === "function"){
-                            dock.modules[node.channel].output[node.output](msg.payload);
+                            if (typeof msg.payload === "number"){
+                                dock.modules[node.channel].output[node.output](msg.payload);
+                                return;
+                            }
+                            if (typeof msg.payload === "object"){
+                                dock.modules[node.channel].output[node.output].apply(msg.payload);
+                                return;
+                            }
                         }
                     }
                 }, function(err){});           
-            }
+
         });
 
         outputNodes.push(node);

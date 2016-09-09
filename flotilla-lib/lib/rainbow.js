@@ -77,9 +77,11 @@ module.exports = function(flotilla, args, channel, module){
     }
 
     return {
-        hue:function(hue){
-            if(typeof hue === "number") set(hue);
-        },
-        colour: set
+        output: {
+            hue:function(hue){
+                if(typeof hue === "number") set(hue);
+            },
+            colour: set
+        }
     };
 }
