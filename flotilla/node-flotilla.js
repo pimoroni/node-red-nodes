@@ -185,12 +185,39 @@ module.exports = function(RED) {
                 findDock(module, node.serial, function(dock){
                     if(dock.modules[node.channel]){
                         if(typeof dock.modules[node.channel].output[node.output] === "function"){
+                            // Handle single numerical value, for outputs which take just one argument (number, motor, etc)
                             if (typeof msg.payload === "number"){
                                 dock.modules[node.channel].output[node.output](msg.payload);
+
+                                // If the module has a "show" method, then call it automatiacally.
+                                // It's clunky to have to do so explicitly in Node-RED!
+                                if(typeof dock.modules[node.channel].output["show"] === "function"){
+                                    dock.modules[node.channel].output["show"]();
+                                }
                                 return;
                             }
+                            // Handle array with multiple sets of function arguments
+                            if (typeof msg.payload === "object" && typeof msg.payload[0] === "object" && msg.payload.length > 0){
+                                for(var x = 0; x < msg.payload.length; x++){
+                                    dock.modules[node.channel].output[node.output].apply(this, msg.payload[x]);
+                                }
+
+                                // If the module has a "show" method, then call it automatiacally.
+                                // It's clunky to have to do so explicitly in Node-RED!
+                                if(typeof dock.modules[node.channel].output["show"] === "function"){
+                                    dock.modules[node.channel].output["show"]();
+                                }
+                                return;
+                            }
+                            // Handle single set of function arguments
                             if (typeof msg.payload === "object"){
-                                dock.modules[node.channel].output[node.output].apply(msg.payload);
+                                dock.modules[node.channel].output[node.output].apply(this, msg.payload);
+
+                                // If the module has a "show" method, then call it automatiacally.
+                                // It's clunky to have to do so explicitly in Node-RED!
+                                if(typeof dock.modules[node.channel].output["show"] === "function"){
+                                    dock.modules[node.channel].output["show"]();
+                                }
                                 return;
                             }
                         }
@@ -222,7 +249,9 @@ module.exports = function(RED) {
         var channel = parseInt(req.query.channel) - 1;
         findDock(module, serial, function(dock){
             res.send(JSON.stringify(dock.modules[channel], function(k,v){
-                if(typeof v === "function"){
+                // Include functions in the JSON by setting their value to the text string "function"
+                // exclude any "show" functions, since we call those internally
+                if(typeof v === "function" && k !== "show"){
                     return "function";
                 }
                 return v;

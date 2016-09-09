@@ -56,14 +56,18 @@
         oneditprepare: function(){
             var dom_input_serial = $("#node-input-flotillaSerial");
             var dom_row_channel = $(".row-channel");
+            var dom_row_channel_error = $(".row-channel-error");
             var dom_input_channel = $("#node-input-flotillaChannel");
             var dom_row_input = $(".row-input");
             var dom_input_input = $("#node-input-flotillaInput");
+
+            var dom_input_name = $("#node-input-name");
 
             var widget = this;
 
             dom_row_channel.hide();
             dom_row_input.hide();
+            dom_row_channel_error.hide();
 
             listDocks(dom_input_serial, widget.flotillaSerial);
 
@@ -80,20 +84,35 @@
              
                 $.getJSON("flotilla/dock?serial=" + dom_input_serial.val(), function(data) {
                     //console.log(data);
+
                     if(data && typeof data.forEach === "function"){
+                        var found = false;
+
                         data.forEach(function(module, index){
                             if(module === null || !module.input) return;
 
                             $("<option>").attr("value",module.channel).text(module.module + " (Channel " + module.channel + ")").appendTo(dom_input_channel);
+
+                            found = true;
                         });
-                        dom_input_channel.val(widget.flotillaChannel);
-                        dom_input_channel.trigger('change');
-                        dom_row_channel.show(); 
+
+                        if(found){
+
+                            dom_input_channel.val(widget.flotillaChannel);
+                            dom_input_channel.trigger('change');
+                            dom_row_channel.show(); 
+                            dom_row_channel_error.hide();
+
+                        }
+                        else
+                        {
+                            dom_row_channel_error.show();
+                        }
                     }
                 });
             });
 
-            dom_input_channel.on("change",function(){
+            dom_input_channel.on("change", function(){
                 var serial = dom_input_serial.val();
                 var channel = dom_input_channel.val();    
 
@@ -114,6 +133,23 @@
                         }
                     }
                 });
+            });
+
+            dom_input_input.on("change", function(){
+                var name = '';
+
+                var dock = dom_input_serial.find("option:selected").text();
+                if(dock && dock.indexOf('(') > -1){
+                    name += dock.split('(')[0]
+                }
+
+                var channel = dom_input_channel.find("option:selected").text();
+                if(channel && channel.indexOf('(') > -1){
+                    name += channel.split('(')[0]
+                }
+                
+                name += dom_input_input.find("option:selected").text();
+                dom_input_name.val(name);
             });
             
         }
@@ -140,14 +176,18 @@
         oneditprepare: function(){
             var dom_input_serial = $("#node-input-flotillaSerial");
             var dom_row_channel = $(".row-channel");
+            var dom_row_channel_error = $(".row-channel-error");
             var dom_input_channel = $("#node-input-flotillaChannel");
             var dom_row_output = $(".row-output");
             var dom_input_output = $("#node-input-flotillaOutput");
+
+            var dom_input_name = $("#node-input-name");
 
             var widget = this;
 
             dom_row_channel.hide();
             dom_row_output.hide();
+            dom_row_channel_error.hide();
 
             listDocks(dom_input_serial, widget.flotillaSerial);
            
@@ -203,6 +243,23 @@
                     dom_row_output.show();
                 });
             });
+
+            dom_input_output.on("change", function(){
+                var name = '';
+
+                var dock = dom_input_serial.find("option:selected").text();
+                if(dock && dock.indexOf('(') > -1){
+                    name += dock.split('(')[0]
+                }
+
+                var channel = dom_input_channel.find("option:selected").text();
+                if(channel && channel.indexOf('(') > -1){
+                    name += channel.split('(')[0]
+                }
+
+                name += dom_input_output.find("option:selected").text();
+                dom_input_name.val(name);
+            });
             
         }
 
@@ -228,31 +285,52 @@
 
 <script type="text/x-red" data-template-name="node-flotilla in">
 <div class="form-row">
-    <label for="node-input-flotillaSerial"><i class="fa fa-tag"></i> Flotilla Dock</label>
+    <label for="node-input-flotillaSerial"><i class="fa fa-arrow-right"></i> Flotilla Dock</label>
     <select id="node-input-flotillaSerial"><option value="">Please select&hellip;</option></select>
 </div>
+<div class="form-row row-channel-error">
+    <h4>Connect an input&hellip;</h4>
+    <p>Plug an input into your Flotilla dock to get started pushing the physical world into your Node-RED project!</p>
+</div>
 <div class="form-row row-channel">
-    <label for="node-input-flotillaChannel"><i class="fa fa-tag"></i> Module</label>
+    <label for="node-input-flotillaChannel"><i class="fa fa-arrow-right"></i> Module</label>
     <select id="node-input-flotillaChannel"></select>
 </div>
 <div class="form-row row-input">
-    <label for="node-input-flotillaInput"><i class="fa fa-tag"></i> Input</label>
+    <label for="node-input-flotillaInput"><i class="fa fa-arrow-right"></i> Input</label>
     <select id="node-input-flotillaInput"></select>
+</div>
+
+<div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name">
+</div>
+<div class="form-row row-input">
+
 </div>
 </script>
 
 <script type="text/x-red" data-template-name="node-flotilla out">
 <div class="form-row">
-    <label for="node-input-flotillaSerial"><i class="fa fa-tag"></i> Flotilla Dock</label>
+    <label for="node-input-flotillaSerial"><i class="fa fa-arrow-right"></i> Flotilla Dock</label>
     <select id="node-input-flotillaSerial"><option value="">Please select&hellip;</option></select>
 </div>
+<div class="form-row row-channel-error">
+    <h4>Connect an output&hellip;</h4>
+    <p>Plug an output into your Flotilla dock to get started interacting with the physical world!</p>
+</div>
 <div class="form-row row-channel">
-    <label for="node-input-flotillaChannel"><i class="fa fa-tag"></i> Module</label>
+    <label for="node-input-flotillaChannel"><i class="fa fa-arrow-right"></i> Module</label>
     <select id="node-input-flotillaChannel"></select>
 </div>
 <div class="form-row row-output">
-    <label for="node-input-flotillaOutput"><i class="fa fa-tag"></i> Output</label>
+    <label for="node-input-flotillaOutput"><i class="fa fa-arrow-right"></i> Output</label>
     <select id="node-input-flotillaOutput"></select>
+</div>
+
+<div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name">
 </div>
 </script>
 
