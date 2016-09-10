@@ -1,6 +1,6 @@
 {
     "name"          : "pimoroni-flotilla",
-    "version"       : "0.0.2",
+    "version"       : "0.0.3",
     "description"   : "Library to talk to Pimoroni Flotilla",
     "dependencies"  : {
         "serialport"   : "~4.0.1",
