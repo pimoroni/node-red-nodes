@@ -98,11 +98,11 @@ def handle_command(cmd):
             blinkt.show()
             return
 
-        if cmd == "clear":
+        if cmd.startswith("clear"):
             blinkt.clear()
             blinkt.show()
 
-        if cmd == "stop":
+        if cmd.startswith("stop"):
             stdin.stop()
             running = False
 
