@@ -4,9 +4,15 @@ First-party Node-RED nodes for Pimoroni products.
 
 These nodes are for the Raspberry Pi only. Please also make sure you have installed the relevant Python libraries before running them.
 
+## Other Products
+
+Some of our products have third-party Node-RED nodes, which you can find below:
+
+* Rainbow HAT by @cyberflohr - https://github.com/cyberflohr/node-red-contrib-rainbow-hat
+
 ## Installing
 
-### Flotilla
+### Flotilla
 
 To install Flotilla just change into your node-red user directory and install like so:
 
