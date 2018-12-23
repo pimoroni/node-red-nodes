@@ -50,5 +50,12 @@
 <p>To set a pixel to a particular colour, you should send Blinkt! a message with the topic <code>pixel.&lt;index&gt;</code> and the payload <code>&lt;red&gt;,&lt;green&gt;,&lt;blue&gt;</code></p>
 <p>For example, to set the first pixel to red, you would send:<p>
 <p>Topic: <code>pixel.0</code>, Payload: <code>255,0,0</code></p>
+
+<p><b>Set brightness</b></p>
+<p>To set the brightness you can send Blinkt! a message with the topic <code>brightness</code>
+and the payload a floating point number between 0 and 1, where <code>1</code> is full brightness.
+<p>For example, to set the brightess to a very low value you would send:</p>
+<p>Topic: <code>brightness</code>, Payload: <code>0.05</code></p>
+
 </script>
 

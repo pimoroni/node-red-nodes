@@ -98,6 +98,12 @@ def handle_command(cmd):
             blinkt.show()
             return
 
+        if cmd.startswith("brightness") and ":" in cmd:
+            cmd, bright = cmd.split(":")
+            blinkt.set_brightness(float(bright))
+            blinkt.show()
+            return
+
         if cmd.startswith("clear"):
             blinkt.clear()
             blinkt.show()
