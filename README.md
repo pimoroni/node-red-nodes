@@ -9,6 +9,7 @@ These nodes are for the Raspberry Pi only. Please also make sure you have instal
 Some of our products have third-party Node-RED nodes, which you can find below:
 
 * Rainbow HAT by @cyberflohr - https://github.com/cyberflohr/node-red-contrib-rainbow-hat
+* Automation HAT/pHAT by @shortbloke - https://github.com/shortbloke/node-red-contrib-automation-hat
 
 ## Installing
 
