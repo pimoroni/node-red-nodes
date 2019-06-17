@@ -1,3 +1,5 @@
+**Note: This repository has been archived since we don't have the people-power to maintain support for Node Red and would rather you didn't waste your time and effort getting this old, abandoned code to work.**
+
 # Node-RED Nodes
 
 First-party Node-RED nodes for Pimoroni products.
